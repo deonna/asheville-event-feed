@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
     'playwright-extra',
     'puppeteer-extra-plugin-stealth',
   ],
+  turbopack: false,
 };
 
 export default nextConfig;
