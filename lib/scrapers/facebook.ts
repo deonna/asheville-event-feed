@@ -21,7 +21,6 @@
 import { isFacebookEnabled } from '../config/env';
 import {
   discoverAndFetchFacebookEvents,
-  discoverFacebookEventIds,
   type FacebookEventDetails,
 } from './facebook-discover';
 import { fetchAllEventDetails, type FacebookGraphQLEvent } from './facebook-graphql';

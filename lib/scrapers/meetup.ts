@@ -1,4 +1,4 @@
-import { ScrapedEvent, MeetupApiEvent } from './types';
+import { ScrapedEvent } from './types';
 import { withRetry } from '@/lib/utils/retry';
 import { isNonNCEvent } from '@/lib/utils/locationFilter';
 import { getEasternOffset } from '@/lib/utils/timezone';
@@ -257,7 +257,7 @@ function formatMeetupEvent(event: MeetupGql2Event): ScrapedEvent {
   // Get location from group
   const city = event.group?.city || "";
   const state = event.group?.state || "";
-  let location = city && state ? `${city}, ${state}` : city || "Asheville, NC";
+  const location = city && state ? `${city}, ${state}` : city || "Asheville, NC";
 
   // Get organizer from group
   const organizer = event.group?.name || event.group?.urlname || "Meetup";
