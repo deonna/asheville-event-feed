@@ -1,12 +1,14 @@
 import { db } from "@/lib/db";
 import { events } from "@/lib/db/schema";
-import { gte, asc, InferSelectModel } from "drizzle-orm";
+import { gte, asc, and, notIlike, or, isNull, InferSelectModel } from "drizzle-orm";
 import EventFeed from "@/components/EventFeed";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { getStartOfTodayEastern } from "@/lib/utils/timezone";
 import InfoBanner from "@/components/InfoBanner";
 import ThemeToggle from "@/components/ThemeToggle";
 import SubmitEventButton from "@/components/SubmitEventButton";
+import UserMenu from "@/components/UserMenu";
+import { matchesDefaultFilter } from "@/lib/config/defaultFilters";
 
 type DbEvent = InferSelectModel<typeof events>;
 
@@ -23,12 +25,30 @@ export default async function Home() {
       // Events that started earlier today may still be ongoing
       const startOfToday = getStartOfTodayEastern();
 
-      initialEvents = await db
+      const allEvents = await db
         .select()
         .from(events)
-        .where(gte(events.startDate, startOfToday))
+        .where(
+          and(
+            gte(events.startDate, startOfToday),
+            // Exclude online/virtual events (but keep events with null location)
+            or(
+              isNull(events.location),
+              and(
+                notIlike(events.location, '%online%'),
+                notIlike(events.location, '%virtual%')
+              )
+            )
+          )
+        )
         .orderBy(asc(events.startDate));
-      console.log(`[Home] Fetched ${initialEvents.length} events.`);
+
+      // Apply default spam filters server-side
+      initialEvents = allEvents.filter((event) => {
+        const textToCheck = `${event.title} ${event.description || ""} ${event.organizer || ""}`;
+        return !matchesDefaultFilter(textToCheck);
+      });
+      console.log(`[Home] Fetched ${allEvents.length} events, ${initialEvents.length} after spam filter.`);
     } else {
       console.warn("[Home] DATABASE_URL is not defined. Showing empty feed.");
     }
@@ -40,15 +60,23 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between gap-4">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/avlgo_banner_logo_v2.svg"
-            alt="AVL GO"
-            className="h-[24px] sm:h-[36px] w-auto dark:brightness-0 dark:invert"
-          />
-          <div className="flex items-center gap-2">
-            <div className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 text-right block">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4">
+          {/* Mobile: two-row layout */}
+          <div className="flex flex-col gap-2 sm:hidden">
+            <div className="flex items-center justify-between">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/avlgo_banner_logo_v2.svg"
+                alt="AVL GO"
+                className="h-[24px] w-auto dark:brightness-0 dark:invert"
+              />
+              <div className="flex items-center gap-2">
+                <SubmitEventButton />
+                <ThemeToggle />
+                <UserMenu />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
               All AVL events aggregated, by{" "}
               <a
                 href="https://mattbrooks.xyz"
@@ -59,9 +87,33 @@ export default async function Home() {
                 mattbrooks.xyz
               </a>
             </div>
-
-            <SubmitEventButton />
-            <ThemeToggle />
+          </div>
+          {/* Desktop: horizontal layout */}
+          <div className="hidden sm:flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/avlgo_banner_logo_v2.svg"
+                alt="AVL GO"
+                className="h-[36px] w-auto dark:brightness-0 dark:invert"
+              />
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                All AVL events aggregated, by{" "}
+                <a
+                  href="https://mattbrooks.xyz"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  mattbrooks.xyz
+                </a>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <SubmitEventButton />
+              <ThemeToggle />
+              <UserMenu />
+            </div>
           </div>
         </div>
       </header>

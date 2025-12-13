@@ -21,7 +21,6 @@
 import { isFacebookEnabled } from '../config/env';
 import {
   discoverAndFetchFacebookEvents,
-  discoverFacebookEventIds,
   type FacebookEventDetails,
 } from './facebook-discover';
 import { fetchAllEventDetails, type FacebookGraphQLEvent } from './facebook-graphql';
@@ -75,6 +74,9 @@ function transformBrowserEventToScrapedEvent(fbEvent: FacebookEventDetails): Scr
     startDate.setDate(startDate.getDate() + 7);
   }
 
+  // Get zip from About query extraction (lat/lon lookup done synchronously at call site if needed)
+  const zip = fbEvent.zip || undefined;
+
   return {
     sourceId: fbEvent.eventId,
     source: 'FACEBOOK',
@@ -82,6 +84,7 @@ function transformBrowserEventToScrapedEvent(fbEvent: FacebookEventDetails): Scr
     description: fbEvent.description || undefined,
     startDate,
     location: fbEvent.location || 'Asheville, NC',
+    zip,
     organizer: fbEvent.organizer || undefined,
     price: fbEvent.price || 'Unknown',
     url: fbEvent.url,

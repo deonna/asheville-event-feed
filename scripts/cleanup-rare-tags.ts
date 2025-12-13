@@ -4,7 +4,6 @@
  */
 
 import { db } from '../lib/db';
-import { events } from '../lib/db/schema';
 import { sql } from 'drizzle-orm';
 
 async function main() {
@@ -20,7 +19,7 @@ async function main() {
     ORDER BY count DESC, tag ASC
   `);
 
-  const rareTags = rareTagsResult.rows.map((r) => (r as { tag: string }).tag);
+  const rareTags = rareTagsResult.map((r) => (r as { tag: string }).tag);
 
   if (rareTags.length === 0) {
     console.log('No rare tags found. Nothing to clean up.');
@@ -60,7 +59,7 @@ async function main() {
   `);
 
   console.log('\nEvents by tag count:');
-  for (const row of tagCountResult.rows) {
+  for (const row of tagCountResult) {
     const r = row as { tag_count: number; event_count: number };
     console.log(`  ${r.tag_count} tags: ${r.event_count} events`);
   }
@@ -74,7 +73,7 @@ async function main() {
        OR array_length(tags, 1) <= 2
   `);
 
-  const count = (retagCandidates.rows[0] as { count: number }).count;
+  const count = (retagCandidates[0] as { count: number }).count;
   console.log(`\n${count} events have ≤2 tags and are candidates for re-tagging.`);
 
   process.exit(0);

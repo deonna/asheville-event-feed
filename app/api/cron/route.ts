@@ -7,7 +7,7 @@ import { scrapeHarrahs } from "@/lib/scrapers/harrahs";
 import { scrapeOrangePeel } from "@/lib/scrapers/orangepeel";
 import { scrapeGreyEagle } from "@/lib/scrapers/greyeagle";
 import { scrapeLiveMusicAvl } from "@/lib/scrapers/livemusicavl";
-import { scrapeExploreAsheville } from "@/lib/scrapers/exploreasheville";
+import { scrapeExploreAsheville, fetchEventDescription } from "@/lib/scrapers/exploreasheville";
 import { scrapeMisfitImprov } from "@/lib/scrapers/misfitimprov";
 import { scrapeUDharma } from "@/lib/scrapers/udharma";
 import { scrapeNCStage } from "@/lib/scrapers/ncstage";
@@ -265,6 +265,36 @@ export async function GET(request: Request) {
       `[Cron] Found ${newEvents.length} new events to tag (${stats.tagging.skipped} existing, skipped).`
     );
 
+    // 3.5 Fetch descriptions for new ExploreAsheville events
+    // The grid API doesn't include descriptions, so we fetch from detail pages
+    const newExploreEvents = newEvents.filter(
+      (e) => e.source === "EXPLORE_ASHEVILLE" && !e.description
+    );
+    if (newExploreEvents.length > 0) {
+      console.log(
+        `[Cron] Fetching descriptions for ${newExploreEvents.length} new ExploreAsheville events...`
+      );
+      let descFetched = 0;
+      for (const event of newExploreEvents) {
+        try {
+          // Strip hash fragment for recurring events (URL like ...#2025-12-15)
+          const cleanUrl = event.url.split("#")[0];
+          const description = await fetchEventDescription(cleanUrl);
+          if (description) {
+            event.description = description;
+            descFetched++;
+          }
+        } catch {
+          // Silently continue - descriptions are optional
+        }
+        // Rate limit: 150ms between fetches
+        await new Promise((r) => setTimeout(r, 150));
+      }
+      console.log(
+        `[Cron] Fetched ${descFetched}/${newExploreEvents.length} descriptions for ExploreAsheville events.`
+      );
+    }
+
     // 4. Generate tags for new events (in parallel with concurrency limit)
     // Helper to process in chunks to avoid rate limits
     const chunk = <T>(arr: T[], size: number) =>
@@ -382,6 +412,7 @@ export async function GET(request: Request) {
                 description: event.description,
                 startDate: event.startDate,
                 location: event.location,
+                zip: event.zip,
                 organizer: event.organizer,
                 price: event.price,
                 url: event.url,
@@ -400,6 +431,7 @@ export async function GET(request: Request) {
                   description: event.description,
                   startDate: event.startDate,
                   location: event.location,
+                  zip: event.zip,
                   organizer: event.organizer,
                   price: event.price,
                   imageUrl: event.imageUrl,
